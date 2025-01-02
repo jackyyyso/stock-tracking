@@ -10,6 +10,29 @@ A modern day trading tracking application built with Next.js, Supabase, Tailwind
 - Calculate trading metrics
 - Modern and responsive UI
 
+## Update History
+
+### January 2024
+
+#### Trade History Improvements
+- Added pagination with 10 trades per page
+- Combined chart and notes in a single details modal
+- Improved table styling and alignment
+- Updated button styles and colors
+- Added responsive layout for better mobile experience
+
+#### Stock Analysis Feature
+- Integrated Polygon.io API for real-time stock data
+- Added rate limiting for API calls (5 calls/minute)
+- Implemented date-specific stock data retrieval
+- Added interactive price chart with tooltips
+
+#### UI/UX Enhancements
+- Updated header with responsive navigation
+- Improved dark/light theme consistency
+- Enhanced button and modal styles
+- Better error handling and user feedback
+
 ## Tech Stack
 
 - [Next.js](https://nextjs.org/) - React framework
