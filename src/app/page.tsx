@@ -7,9 +7,11 @@ import Header from '@/components/Header'
 import { usePortfolio } from '@/lib/portfolio-context'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useMemo } from 'react'
+import { useAuth } from '@/lib/auth'
 
 export default function Home() {
   const { stats, loading } = usePortfolio()
+  const { user } = useAuth()
 
   const chartData = useMemo(() => {
     let cumulative = 0
@@ -36,6 +38,24 @@ export default function Home() {
       )
     }
     return null
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-white">
+        <Header />
+        <div className="container mx-auto px-4 py-32 text-center">
+          <h1 className="text-4xl font-bold mb-6">Welcome to Stock Trading Tracker</h1>
+          <p className="text-xl text-gray-400 mb-8">Sign in to track your trades and analyze your performance.</p>
+          <button
+            onClick={() => window.location.href = '/auth/signin'}
+            className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-3 px-6 text-lg font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-colors"
+          >
+            Get Started
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
