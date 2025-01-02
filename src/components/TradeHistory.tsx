@@ -1,110 +1,55 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Trade } from '@/types/supabase'
-import Image from 'next/image'
 import { usePortfolio } from '@/lib/portfolio-context'
 
-type CloseTradeModalProps = {
+type DetailsModalProps = {
   trade: Trade
   onClose: () => void
-  onSubmit: (exitPrice: number) => Promise<void>
 }
 
-function CloseTradeModal({ trade, onClose, onSubmit }: CloseTradeModalProps) {
-  const [exitPrice, setExitPrice] = useState('')
-  const [error, setError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsSubmitting(true)
-
-    const price = parseFloat(exitPrice)
-    if (isNaN(price) || price <= 0) {
-      setError('Please enter a valid exit price')
-      setIsSubmitting(false)
-      return
-    }
-
-    try {
-      await onSubmit(price)
-      onClose()
-    } catch (error: any) {
-      setError(error.message)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
+function DetailsModal({ trade, onClose }: DetailsModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
-        <h3 className="text-xl font-semibold text-white mb-4">Close Trade: {trade.symbol}</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-200 mb-1">Exit Price</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={exitPrice}
-              onChange={(e) => setExitPrice(e.target.value)}
-              className="w-full rounded-md bg-gray-700 border border-gray-600 text-white p-2.5 focus:border-indigo-500 focus:ring-indigo-500"
-              required
-            />
-          </div>
-          {error && (
-            <p className="text-red-400 text-sm">{error}</p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div className="bg-card rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-xl font-semibold text-card-foreground">
+            Trade Details: {trade.symbol}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-card-foreground"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {trade.chart_url && (
+            <div>
+              <h4 className="text-sm font-medium text-card-foreground mb-2">Chart</h4>
+              <div className="relative w-full h-[400px]">
+                {/* eslint-disable-next-line */}
+                <img
+                  src={trade.chart_url}
+                  alt="Trade Chart"
+                  className="w-full h-full object-contain bg-muted rounded-lg"
+                />
+              </div>
+            </div>
           )}
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`px-4 py-2 text-sm font-medium text-white rounded-md ${
-                isSubmitting ? 'bg-indigo-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
-              }`}
-            >
-              {isSubmitting ? 'Closing...' : 'Close Trade'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
 
-type ImageModalProps = {
-  imageUrl: string
-  onClose: () => void
-}
-
-function ImageModal({ imageUrl, onClose }: ImageModalProps) {
-  return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="relative max-w-4xl w-full h-full flex items-center justify-center">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white hover:text-gray-300"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        {/* eslint-disable-next-line */}
-        <img
-          src={imageUrl}
-          alt="Trade Chart"
-          className="max-w-full max-h-full object-contain"
-          onClick={(e) => e.stopPropagation()}
-        />
+          {trade.notes && (
+            <div>
+              <h4 className="text-sm font-medium text-card-foreground mb-2">Notes</h4>
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm text-card-foreground whitespace-pre-wrap">{trade.notes}</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -113,10 +58,11 @@ function ImageModal({ imageUrl, onClose }: ImageModalProps) {
 export default function TradeHistory() {
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const { refreshData } = usePortfolio()
+  const { refreshData, stats } = usePortfolio()
+  const [currentPage, setCurrentPage] = useState(1)
+  const tradesPerPage = 10
 
   const fetchTrades = async () => {
     try {
@@ -137,105 +83,114 @@ export default function TradeHistory() {
 
   useEffect(() => {
     fetchTrades()
-  }, [])
+  }, [stats])
 
-  const handleCloseTrade = async (trade: Trade, exitPrice: number) => {
+  const handleDelete = async (tradeId: string) => {
+    if (!confirm('Are you sure you want to delete this trade?')) return
+
     try {
-      const profit_loss = trade.trade_type === 'LONG'
-        ? (exitPrice - trade.entry_price) * trade.quantity
-        : (trade.entry_price - exitPrice) * trade.quantity
-
       const { error } = await supabase
         .from('trades')
-        .update({
-          exit_price: exitPrice,
-          exit_date: new Date().toISOString(),
-          profit_loss
-        })
-        .eq('id', trade.id)
+        .delete()
+        .eq('id', tradeId)
 
       if (error) throw error
 
-      // Refresh trades and portfolio data
       await Promise.all([
         fetchTrades(),
         refreshData()
       ])
     } catch (error: any) {
-      console.error('Error closing trade:', error)
-      throw new Error('Failed to close trade')
+      console.error('Error deleting trade:', error)
+      setError('Failed to delete trade')
     }
   }
 
   if (loading) {
-    return <div className="text-gray-400 p-4">Loading trades...</div>
+    return <div className="text-muted-foreground p-4">Loading trades...</div>
   }
+
+  // Pagination calculations
+  const totalPages = Math.ceil(trades.length / tradesPerPage)
+  const indexOfLastTrade = currentPage * tradesPerPage
+  const indexOfFirstTrade = indexOfLastTrade - tradesPerPage
+  const currentTrades = trades.slice(indexOfFirstTrade, indexOfLastTrade)
 
   return (
     <>
       <div className="overflow-x-auto">
         {error && (
-          <div className="bg-destructive/50 border border-destructive text-destructive-foreground px-4 py-3 rounded-md mb-4">
+          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md mb-4">
             {error}
           </div>
         )}
         
         <table className="min-w-full divide-y divide-border">
-          <thead className="bg-muted">
+          <thead className="bg-muted/50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Symbol</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Entry Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Exit Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Quantity</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">P/L</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Details</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Symbol</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Entry Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Exit Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Quantity</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">P/L</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Date</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-card divide-y divide-border">
-            {trades.length === 0 ? (
+          <tbody className="bg-background divide-y divide-border">
+            {currentTrades.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-4 text-center text-muted-foreground">
                   No trades found
                 </td>
               </tr>
             ) : (
-              trades.map((trade) => (
-                <tr key={trade.id} className="hover:bg-muted/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{trade.symbol}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">{trade.trade_type}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">${trade.entry_price.toFixed(2)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
-                    {trade.exit_price ? `$${trade.exit_price.toFixed(2)}` : '-'}
+              currentTrades.map((trade) => (
+                <tr key={trade.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm font-medium text-blue-500 hover:text-blue-600">{trade.symbol}</span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">{trade.quantity}</td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    trade.profit_loss === null ? 'text-muted-foreground' : trade.profit_loss >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
-                  }`}>
-                    {trade.profit_loss === null ? '-' : `$${trade.profit_loss.toFixed(2)}`}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm font-medium">{trade.trade_type}</span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
-                    {new Date(trade.entry_date).toLocaleDateString()}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm">${trade.entry_price.toFixed(2)}</span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-card-foreground">
-                    <div className="space-y-2">
-                      {trade.chart_url && (
-                        <div>
-                          <button
-                            onClick={() => setSelectedImage(trade.chart_url)}
-                            className="text-primary hover:text-primary/80"
-                          >
-                            [Chart]
-                          </button>
-                        </div>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm">{trade.exit_price ? `$${trade.exit_price.toFixed(2)}` : '-'}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm">{trade.quantity}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`text-sm font-medium ${
+                      trade.profit_loss === null ? 'text-muted-foreground' : 
+                      trade.profit_loss >= 0 ? 'text-emerald-500' : 
+                      'text-rose-500'
+                    }`}>
+                      {trade.profit_loss === null ? '-' : `$${trade.profit_loss.toFixed(2)}`}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-sm">{new Date(trade.entry_date).toLocaleDateString()}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center justify-end space-x-4">
+                      {(trade.chart_url || trade.notes) && (
+                        <button
+                          onClick={() => setSelectedTrade(trade)}
+                          className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+                        >
+                          Details
+                        </button>
                       )}
-                      {trade.notes && (
-                        <div>
-                          <span className="text-muted-foreground">[Note]</span>
-                          <p className="text-sm text-card-foreground mt-1">{trade.notes}</p>
-                        </div>
-                      )}
+                      <button
+                        onClick={() => handleDelete(trade.id)}
+                        className="text-sm font-medium text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -243,12 +198,43 @@ export default function TradeHistory() {
             )}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center px-6 py-4 border-t border-border">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded text-sm font-medium ${
+                currentPage === 1
+                  ? 'text-muted-foreground cursor-not-allowed'
+                  : 'text-blue-500 hover:text-blue-600'
+              }`}
+            >
+              Previous
+            </button>
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1 rounded text-sm font-medium ${
+                currentPage === totalPages
+                  ? 'text-muted-foreground cursor-not-allowed'
+                  : 'text-blue-500 hover:text-blue-600'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
-      {selectedImage && (
-        <ImageModal
-          imageUrl={selectedImage}
-          onClose={() => setSelectedImage(null)}
+      {selectedTrade && (
+        <DetailsModal
+          trade={selectedTrade}
+          onClose={() => setSelectedTrade(null)}
         />
       )}
     </>

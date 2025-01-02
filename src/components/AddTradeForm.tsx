@@ -103,7 +103,10 @@ export default function AddTradeForm() {
         throw new Error(`Error adding trade: ${insertError.message}`)
       }
 
-      // Reset form
+      // Refresh portfolio data immediately
+      await refreshData()
+
+      // Reset form after successful refresh
       setFormData({
         symbol: '',
         entry_price: '',
@@ -115,8 +118,6 @@ export default function AddTradeForm() {
         entry_date: format(new Date(), 'yyyy-MM-dd')
       })
 
-      // Refresh portfolio data
-      await refreshData()
     } catch (error: any) {
       console.error('Error adding trade:', error)
       setError(error.message)

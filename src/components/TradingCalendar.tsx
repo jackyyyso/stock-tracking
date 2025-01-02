@@ -71,19 +71,34 @@ export default function TradingCalendar() {
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({})
 
   const chartData = useMemo(() => {
-    const dates = Object.keys(calendarData).sort()
-    let cumulative = 0
     const startOfYear = new Date(new Date().getFullYear(), 0, 1)
+    const endOfYear = new Date(new Date().getFullYear(), 11, 31)
+    const allDates: ChartData[] = []
+    let cumulative = 0
     
-    return dates
-      .filter(date => new Date(date) >= startOfYear)
-      .map(date => {
-        cumulative += calendarData[date].totalPL
-        return {
-          date: format(parseISO(date), 'MMM d'),
-          value: cumulative
+    // Generate all dates for the year
+    let currentDate = startOfYear
+    while (currentDate <= endOfYear) {
+      const dateStr = format(currentDate, 'yyyy-MM-dd')
+      const dayData = calendarData[dateStr]
+      
+      // Only update cumulative on weekdays
+      if (!isWeekend(currentDate)) {
+        if (dayData) {
+          cumulative += dayData.totalPL
         }
-      })
+        
+        // Add data point for weekdays
+        allDates.push({
+          date: format(currentDate, 'MMM d'),
+          value: cumulative
+        })
+      }
+      
+      currentDate = new Date(currentDate.setDate(currentDate.getDate() + 1))
+    }
+    
+    return allDates
   }, [calendarData])
 
   useEffect(() => {
@@ -239,9 +254,9 @@ export default function TradingCalendar() {
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-[#1a1f2e] border border-[#2d3548] p-2 rounded-lg shadow-lg">
-          <p className="text-white text-sm">{payload[0].payload.date}</p>
-          <p className={`text-sm font-medium ${payload[0].value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+        <div className="bg-card border border-border p-2 rounded-lg shadow-lg">
+          <p className="text-card-foreground text-sm">{payload[0].payload.date}</p>
+          <p className={`text-sm font-medium ${payload[0].value >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
             ${payload[0].value.toFixed(2)}
           </p>
         </div>
@@ -464,6 +479,45 @@ export default function TradingCalendar() {
                   )
                 })}
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <div className="p-6 rounded-lg bg-card border border-border shadow-xl">
+          <h2 className="text-xl font-semibold mb-4 text-primary">Cumulative Gain</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <XAxis
+                  dataKey="date"
+                  stroke="currentColor"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={30}
+                  tickFormatter={(value) => value}
+                  className="text-muted-foreground"
+                />
+                <YAxis
+                  stroke="currentColor"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `$${value}`}
+                  className="text-muted-foreground"
+                />
+                <Tooltip content={CustomTooltip} />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
