@@ -175,69 +175,68 @@ export default function TradeHistory() {
     <>
       <div className="overflow-x-auto">
         {error && (
-          <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-md mb-4">
+          <div className="bg-destructive/50 border border-destructive text-destructive-foreground px-4 py-3 rounded-md mb-4">
             {error}
           </div>
         )}
         
-        <table className="min-w-full divide-y divide-gray-700">
-          <thead className="bg-gray-800">
+        <table className="min-w-full divide-y divide-border">
+          <thead className="bg-muted">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Symbol</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Entry Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Exit Price</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Quantity</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">P/L</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Chart</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Symbol</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Entry Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Exit Price</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Quantity</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">P/L</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Details</th>
             </tr>
           </thead>
-          <tbody className="bg-gray-800 divide-y divide-gray-700">
+          <tbody className="bg-card divide-y divide-border">
             {trades.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-4 text-center text-gray-400">
+                <td colSpan={8} className="px-6 py-4 text-center text-muted-foreground">
                   No trades found
                 </td>
               </tr>
             ) : (
               trades.map((trade) => (
-                <tr key={trade.id} className="hover:bg-gray-700 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-400">{trade.symbol}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{trade.trade_type}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${trade.entry_price.toFixed(2)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                <tr key={trade.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">{trade.symbol}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">{trade.trade_type}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">${trade.entry_price.toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
                     {trade.exit_price ? `$${trade.exit_price.toFixed(2)}` : '-'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{trade.quantity}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">{trade.quantity}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                    trade.profit_loss === null ? 'text-gray-400' : trade.profit_loss >= 0 ? 'text-green-400' : 'text-red-400'
+                    trade.profit_loss === null ? 'text-muted-foreground' : trade.profit_loss >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
                   }`}>
                     {trade.profit_loss === null ? '-' : `$${trade.profit_loss.toFixed(2)}`}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-card-foreground">
                     {new Date(trade.entry_date).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {trade.chart_url && (
-                      <button
-                        onClick={() => setSelectedImage(trade.chart_url)}
-                        className="text-indigo-400 hover:text-indigo-300"
-                      >
-                        View Chart
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {!trade.exit_price && (
-                      <button
-                        onClick={() => setSelectedTrade(trade)}
-                        className="text-indigo-400 hover:text-indigo-300"
-                      >
-                        Close Trade
-                      </button>
-                    )}
+                  <td className="px-6 py-4 text-sm text-card-foreground">
+                    <div className="space-y-2">
+                      {trade.chart_url && (
+                        <div>
+                          <button
+                            onClick={() => setSelectedImage(trade.chart_url)}
+                            className="text-primary hover:text-primary/80"
+                          >
+                            [Chart]
+                          </button>
+                        </div>
+                      )}
+                      {trade.notes && (
+                        <div>
+                          <span className="text-muted-foreground">[Note]</span>
+                          <p className="text-sm text-card-foreground mt-1">{trade.notes}</p>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -250,14 +249,6 @@ export default function TradeHistory() {
         <ImageModal
           imageUrl={selectedImage}
           onClose={() => setSelectedImage(null)}
-        />
-      )}
-
-      {selectedTrade && (
-        <CloseTradeModal
-          trade={selectedTrade}
-          onClose={() => setSelectedTrade(null)}
-          onSubmit={(exitPrice) => handleCloseTrade(selectedTrade, exitPrice)}
         />
       )}
     </>

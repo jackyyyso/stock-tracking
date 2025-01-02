@@ -1,13 +1,11 @@
 import './globals.css'
-import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth'
 import { PortfolioProvider } from '@/lib/portfolio-context'
-
-const inter = Inter({ subsets: ['latin'] })
+import { ThemeProvider } from '@/lib/theme-context'
 
 export const metadata = {
   title: 'Stock Trading Tracker',
-  description: 'A modern day trading tracking application',
+  description: 'Track your stock trades and analyze your performance',
 }
 
 export default function RootLayout({
@@ -16,15 +14,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          <PortfolioProvider>
-            <main className="min-h-screen bg-background">
+    <html lang="en" className="h-full">
+      <body className="h-full">
+        <ThemeProvider>
+          <AuthProvider>
+            <PortfolioProvider>
               {children}
-            </main>
-          </PortfolioProvider>
-        </AuthProvider>
+            </PortfolioProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

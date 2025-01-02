@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import Calendar from 'react-calendar'
-import { format, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, isWeekend } from 'date-fns'
+import { format, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, isWeekend, isSameWeek } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -73,13 +73,17 @@ export default function TradingCalendar() {
   const chartData = useMemo(() => {
     const dates = Object.keys(calendarData).sort()
     let cumulative = 0
-    return dates.map(date => {
-      cumulative += calendarData[date].totalPL
-      return {
-        date: format(parseISO(date), 'MMM d'),
-        value: cumulative
-      }
-    })
+    const startOfYear = new Date(new Date().getFullYear(), 0, 1)
+    
+    return dates
+      .filter(date => new Date(date) >= startOfYear)
+      .map(date => {
+        cumulative += calendarData[date].totalPL
+        return {
+          date: format(parseISO(date), 'MMM d'),
+          value: cumulative
+        }
+      })
   }, [calendarData])
 
   useEffect(() => {
@@ -142,25 +146,27 @@ export default function TradingCalendar() {
     }
   }
 
-  const calculateWeeklyStats = (tradesByDate: CalendarData) => {
+  const calculateWeeklyStats = (trades: Trade[]) => {
     const weeklyData: WeeklyStats = {}
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
     
-    Object.entries(tradesByDate).forEach(([dateStr, dayData]) => {
-      const date = parseISO(dateStr)
+    trades.forEach(trade => {
+      if (!trade.exit_date || !trade.profit_loss) return
+      const exitDate = new Date(trade.exit_date)
+      
       // Skip if not in current month
-      if (date < startOfMonth || date > endOfMonth) return
+      if (exitDate < startOfMonth || exitDate > endOfMonth) return
 
-      const weekStart = format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      const weekStart = format(startOfWeek(exitDate, { weekStartsOn: 1 }), 'yyyy-MM-dd')
       
       if (!weeklyData[weekStart]) {
         weeklyData[weekStart] = { totalPL: 0, tradeCount: 0 }
       }
       
-      weeklyData[weekStart].totalPL += dayData.totalPL
-      weeklyData[weekStart].tradeCount += dayData.trades.length
+      weeklyData[weekStart].totalPL += trade.profit_loss
+      weeklyData[weekStart].tradeCount++
     })
 
     return weeklyData
@@ -195,7 +201,7 @@ export default function TradingCalendar() {
       })
 
       setCalendarData(tradesByDate)
-      setWeeklyStats(calculateWeeklyStats(tradesByDate))
+      setWeeklyStats(calculateWeeklyStats(trades))
       setMetrics(calculateMetrics(trades))
       setLoading(false)
     } catch (error) {
@@ -251,51 +257,51 @@ export default function TradingCalendar() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#1a1f2e] rounded-lg p-4 border border-[#2d3548]">
+        <div className="bg-card rounded-lg p-4 border border-border">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <h4 className="text-gray-400 text-sm">Monthly Avg Win</h4>
-              <p className="text-emerald-400 font-semibold">${metrics.avgWin.toFixed(2)}</p>
+              <h4 className="text-muted-foreground text-sm">Monthly Avg Win</h4>
+              <p className="text-emerald-500 dark:text-emerald-400 font-semibold">${metrics.avgWin.toFixed(2)}</p>
             </div>
             <div>
-              <h4 className="text-gray-400 text-sm">Monthly Avg Loss</h4>
-              <p className="text-rose-400 font-semibold">${metrics.avgLoss.toFixed(2)}</p>
+              <h4 className="text-muted-foreground text-sm">Monthly Avg Loss</h4>
+              <p className="text-rose-500 dark:text-rose-400 font-semibold">${metrics.avgLoss.toFixed(2)}</p>
             </div>
           </div>
         </div>
-        <div className="bg-[#1a1f2e] rounded-lg p-4 border border-[#2d3548]">
+        <div className="bg-card rounded-lg p-4 border border-border">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <h4 className="text-gray-400 text-sm">Monthly Avg % Gain</h4>
-              <p className="text-emerald-400 font-semibold">{metrics.avgGainPercent.toFixed(2)}%</p>
+              <h4 className="text-muted-foreground text-sm">Monthly Avg % Gain</h4>
+              <p className="text-emerald-500 dark:text-emerald-400 font-semibold">{metrics.avgGainPercent.toFixed(2)}%</p>
             </div>
             <div>
-              <h4 className="text-gray-400 text-sm">Monthly Avg % Loss</h4>
-              <p className="text-rose-400 font-semibold">{metrics.avgLossPercent.toFixed(2)}%</p>
+              <h4 className="text-muted-foreground text-sm">Monthly Avg % Loss</h4>
+              <p className="text-rose-500 dark:text-rose-400 font-semibold">{metrics.avgLossPercent.toFixed(2)}%</p>
             </div>
           </div>
         </div>
-        <div className="bg-[#1a1f2e] rounded-lg p-4 border border-[#2d3548]">
+        <div className="bg-card rounded-lg p-4 border border-border">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <h4 className="text-gray-400 text-sm">Monthly Best</h4>
-              <p className="text-emerald-400 font-semibold">${metrics.biggestProfit.toFixed(2)}</p>
+              <h4 className="text-muted-foreground text-sm">Monthly Best</h4>
+              <p className="text-emerald-500 dark:text-emerald-400 font-semibold">${metrics.biggestProfit.toFixed(2)}</p>
             </div>
             <div>
-              <h4 className="text-gray-400 text-sm">Monthly Worst</h4>
-              <p className="text-rose-400 font-semibold">${metrics.biggestLoss.toFixed(2)}</p>
+              <h4 className="text-muted-foreground text-sm">Monthly Worst</h4>
+              <p className="text-rose-500 dark:text-rose-400 font-semibold">${metrics.biggestLoss.toFixed(2)}</p>
             </div>
           </div>
         </div>
-        <div className="bg-[#1a1f2e] rounded-lg p-4 border border-[#2d3548]">
+        <div className="bg-card rounded-lg p-4 border border-border">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <h4 className="text-gray-400 text-sm">Monthly Best %</h4>
-              <p className="text-emerald-400 font-semibold">{metrics.biggestGainPercent.toFixed(2)}%</p>
+              <h4 className="text-muted-foreground text-sm">Monthly Best %</h4>
+              <p className="text-emerald-500 dark:text-emerald-400 font-semibold">{metrics.biggestGainPercent.toFixed(2)}%</p>
             </div>
             <div>
-              <h4 className="text-gray-400 text-sm">Monthly Worst %</h4>
-              <p className="text-rose-400 font-semibold">{metrics.biggestLossPercent.toFixed(2)}%</p>
+              <h4 className="text-muted-foreground text-sm">Monthly Worst %</h4>
+              <p className="text-rose-500 dark:text-rose-400 font-semibold">{metrics.biggestLossPercent.toFixed(2)}%</p>
             </div>
           </div>
         </div>
@@ -307,10 +313,10 @@ export default function TradingCalendar() {
             <style jsx global>{`
               .react-calendar {
                 width: 100%;
-                background-color: #1a1f2e;
-                border: 1px solid #2d3548;
+                background-color: hsl(var(--card));
+                border: 1px solid hsl(var(--border));
                 border-radius: 1rem;
-                color: #e5e7eb;
+                color: hsl(var(--card-foreground));
                 padding: 1rem;
                 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
               }
@@ -321,15 +327,15 @@ export default function TradingCalendar() {
                 min-width: 44px;
                 background: none;
                 font-size: 14px;
-                color: #e5e7eb;
+                color: hsl(var(--card-foreground));
               }
               .react-calendar__navigation button:disabled {
-                background-color: #1a1f2e;
+                background-color: hsl(var(--card));
                 opacity: 0.5;
               }
               .react-calendar__navigation button:enabled:hover,
               .react-calendar__navigation button:enabled:focus {
-                background-color: #2d3548;
+                background-color: hsl(var(--muted));
                 border-radius: 0.5rem;
               }
               .react-calendar__month-view__weekdays {
@@ -337,7 +343,7 @@ export default function TradingCalendar() {
                 text-transform: uppercase;
                 font-size: 0.7em;
                 font-weight: bold;
-                color: #9ca3af;
+                color: hsl(var(--muted-foreground));
                 padding: 0.25rem 0;
                 display: grid !important;
                 grid-template-columns: repeat(5, 1fr);
@@ -361,25 +367,25 @@ export default function TradingCalendar() {
                 padding: 0.5em 0.25em;
                 height: 70px;
                 font-size: 0.8rem;
-                color: #e5e7eb;
-                border: 1px solid #2d3548;
+                color: hsl(var(--card-foreground));
+                border: 1px solid hsl(var(--border));
               }
               .react-calendar__tile:enabled:hover,
               .react-calendar__tile:enabled:focus {
-                background-color: #2d3548;
+                background-color: hsl(var(--muted));
                 border-radius: 0.5rem;
               }
               .react-calendar__tile--now {
-                background-color: #374151;
+                background-color: hsl(var(--muted));
                 border-radius: 0.5rem;
               }
               .react-calendar__tile--active {
-                background-color: #4338ca !important;
+                background-color: hsl(var(--accent)) !important;
                 border-radius: 0.5rem;
               }
               .react-calendar__tile--active:enabled:hover,
               .react-calendar__tile--active:enabled:focus {
-                background-color: #4338ca;
+                background-color: hsl(var(--accent));
               }
               .react-calendar__tile:disabled {
                 display: none;
@@ -399,23 +405,23 @@ export default function TradingCalendar() {
           </div>
 
           {selectedDayTrades.length > 0 && (
-            <div className="bg-[#1a1f2e] rounded-lg p-4 mt-4 border border-[#2d3548] shadow-xl">
-              <h3 className="text-lg font-semibold text-white mb-3">
+            <div className="bg-card rounded-lg p-4 mt-4 border border-border shadow-xl">
+              <h3 className="text-lg font-semibold text-card-foreground mb-3">
                 Trades on {format(value as Date, 'MMMM d, yyyy')}
               </h3>
               <div className="space-y-2">
                 {selectedDayTrades.map((trade) => (
                   <div
                     key={trade.id}
-                    className="flex justify-between items-center p-3 bg-[#2d3548] rounded-lg hover:bg-[#374151] transition-colors"
+                    className="flex justify-between items-center p-3 bg-muted rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex flex-col">
-                      <span className="text-indigo-400 font-medium">{trade.symbol}</span>
-                      <span className="text-gray-400 text-xs">{trade.trade_type}</span>
+                      <span className="text-primary font-medium">{trade.symbol}</span>
+                      <span className="text-muted-foreground text-xs">{trade.trade_type}</span>
                     </div>
                     {trade.profit_loss !== null && (
                       <span className={`font-medium ${
-                        trade.profit_loss >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        trade.profit_loss >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
                       }`}>
                         ${trade.profit_loss.toFixed(2)}
                       </span>
@@ -428,8 +434,8 @@ export default function TradingCalendar() {
         </div>
 
         <div>
-          <div className="bg-[#1a1f2e] rounded-lg p-4 border border-[#2d3548] shadow-xl">
-            <h3 className="text-lg font-semibold text-white mb-4">Monthly Weekly Gains</h3>
+          <div className="bg-card rounded-lg p-4 border border-border shadow-xl">
+            <h3 className="text-lg font-semibold text-card-foreground mb-4">Monthly Weekly Gains</h3>
             <div className="space-y-3">
               {Object.entries(weeklyStats)
                 .sort((a, b) => b[0].localeCompare(a[0]))
@@ -439,18 +445,18 @@ export default function TradingCalendar() {
                   return (
                     <div
                       key={weekStart}
-                      className="flex justify-between items-center p-3 bg-[#2d3548] rounded-lg"
+                      className="flex justify-between items-center p-3 bg-muted rounded-lg"
                     >
                       <div className="flex flex-col">
-                        <span className="text-gray-300 text-sm">
+                        <span className="text-card-foreground text-sm">
                           {weekStartFormatted} - {weekEnd}
                         </span>
-                        <span className="text-gray-400 text-xs">
+                        <span className="text-muted-foreground text-xs">
                           {stats.tradeCount} trades
                         </span>
                       </div>
                       <span className={`font-medium ${
-                        stats.totalPL >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        stats.totalPL >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'
                       }`}>
                         ${stats.totalPL.toFixed(2)}
                       </span>

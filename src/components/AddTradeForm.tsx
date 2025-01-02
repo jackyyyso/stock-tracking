@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { usePortfolio } from '@/lib/portfolio-context'
+import { format } from 'date-fns'
 
 export default function AddTradeForm() {
   const { user } = useAuth()
@@ -13,7 +14,8 @@ export default function AddTradeForm() {
     quantity: '',
     trade_type: 'LONG',
     notes: '',
-    chart_image: null as File | null
+    chart_image: null as File | null,
+    entry_date: format(new Date(), 'yyyy-MM-dd')
   })
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -22,44 +24,31 @@ export default function AddTradeForm() {
     e.preventDefault()
     setError(null)
     setIsSubmitting(true)
-    
+
     if (!user) {
-      setError('User not authenticated')
+      setError('Please sign in to add trades')
       setIsSubmitting(false)
       return
     }
 
     try {
-      // Upload image if exists
       let chart_url = null
+
+      // Upload image if provided
       if (formData.chart_image) {
-        try {
-          const fileExt = formData.chart_image.name.split('.').pop()
-          const fileName = `${user.id}/${Math.random()}.${fileExt}`
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('trade-charts')
-            .upload(fileName, formData.chart_image, {
-              upsert: false,
-              contentType: formData.chart_image.type
-            })
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('trade-charts')
+          .upload(`${user.id}/${Date.now()}-${formData.chart_image.name}`, formData.chart_image)
 
-          if (uploadError) {
-            console.error('Image upload error:', uploadError)
-            throw new Error(`Image upload failed: ${uploadError.message}`)
-          }
-
-          // Get the public URL for the uploaded image
-          const { data: { publicUrl } } = supabase.storage
-            .from('trade-charts')
-            .getPublicUrl(fileName)
-
-          chart_url = publicUrl
-        } catch (uploadError: any) {
-          console.error('Detailed upload error:', uploadError)
-          setError(`Image upload failed: ${uploadError.message}`)
-          setIsSubmitting(false)
-          return
+        if (uploadError) {
+          throw new Error(`Image upload failed: ${uploadError.message}`)
         }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('trade-charts')
+          .getPublicUrl(uploadData.path)
+
+        chart_url = publicUrl
       }
 
       // Validate numeric fields
@@ -104,18 +93,17 @@ export default function AddTradeForm() {
           quantity,
           trade_type: formData.trade_type,
           notes: formData.notes,
-          entry_date: new Date().toISOString(),
+          entry_date: formData.entry_date,
           exit_date: exit_price ? new Date().toISOString() : null,
           profit_loss,
           chart_url
         }])
 
       if (insertError) {
-        console.error('Trade insert error:', insertError)
-        throw new Error(`Failed to add trade: ${insertError.message}`)
+        throw new Error(`Error adding trade: ${insertError.message}`)
       }
-      
-      // Reset form on success
+
+      // Reset form
       setFormData({
         symbol: '',
         entry_price: '',
@@ -123,19 +111,15 @@ export default function AddTradeForm() {
         quantity: '',
         trade_type: 'LONG',
         notes: '',
-        chart_image: null
+        chart_image: null,
+        entry_date: format(new Date(), 'yyyy-MM-dd')
       })
-
-      // Reset file input
-      const fileInput = document.getElementById('chart_image') as HTMLInputElement
-      if (fileInput) fileInput.value = ''
 
       // Refresh portfolio data
       await refreshData()
-
     } catch (error: any) {
-      console.error('Detailed error:', error)
-      setError(error.message || 'Failed to add trade')
+      console.error('Error adding trade:', error)
+      setError(error.message)
     } finally {
       setIsSubmitting(false)
     }
@@ -144,10 +128,10 @@ export default function AddTradeForm() {
   if (!user) {
     return (
       <div className="text-center py-4">
-        <p className="text-gray-400 mb-4">Please sign in to add trades</p>
+        <p className="text-muted-foreground mb-4">Please sign in to add trades</p>
         <button
           onClick={() => window.location.href = '/auth/signin'}
-          className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-colors"
+          className="inline-flex justify-center rounded-md border border-transparent bg-primary py-2 px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background transition-colors"
         >
           Sign In
         </button>
@@ -161,13 +145,13 @@ export default function AddTradeForm() {
     }
   }
 
-  const inputClass = "mt-1 block w-full rounded-md bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2.5"
-  const labelClass = "block text-sm font-medium text-gray-200 mb-1"
+  const inputClass = "mt-1 block w-full rounded-md bg-background border border-input text-foreground shadow-sm focus:border-primary focus:ring-primary p-2.5"
+  const labelClass = "block text-sm font-medium text-card-foreground mb-1"
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-md">
+        <div className="bg-destructive/50 border border-destructive text-destructive-foreground px-4 py-3 rounded-md">
           {error}
         </div>
       )}
@@ -195,6 +179,17 @@ export default function AddTradeForm() {
             <option value="LONG">Long</option>
             <option value="SHORT">Short</option>
           </select>
+        </div>
+
+        <div>
+          <label className={labelClass}>Entry Date</label>
+          <input
+            type="date"
+            value={formData.entry_date}
+            onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
+            className={`${inputClass} dark:[color-scheme:dark] [color-scheme:light]`}
+            required
+          />
         </div>
 
         <div>
@@ -237,37 +232,41 @@ export default function AddTradeForm() {
           />
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <label className={labelClass}>Chart Image (Optional)</label>
           <input
             id="chart_image"
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 file:cursor-pointer`}
+            className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer`}
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <label className={labelClass}>Notes (Optional)</label>
+          <textarea
+            value={formData.notes}
+            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            className={`${inputClass} min-h-[100px]`}
+            placeholder="Add your trade notes here..."
           />
         </div>
       </div>
 
-      <div>
-        <label className={labelClass}>Notes (Optional)</label>
-        <textarea
-          value={formData.notes}
-          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          className={`${inputClass} min-h-[100px]`}
-          placeholder="Add your trade notes here..."
-        />
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={`px-6 py-2 rounded-md text-primary-foreground font-medium ${
+            isSubmitting
+              ? 'bg-primary/70 cursor-not-allowed'
+              : 'bg-primary hover:bg-primary/90'
+          }`}
+        >
+          {isSubmitting ? 'Adding Trade...' : 'Add Trade'}
+        </button>
       </div>
-
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className={`w-full inline-flex justify-center rounded-md border border-transparent ${
-          isSubmitting ? 'bg-indigo-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
-        } py-3 px-4 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-colors`}
-      >
-        {isSubmitting ? 'Adding Trade...' : 'Add Trade'}
-      </button>
     </form>
   )
 } 
